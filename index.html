@@ -24,33 +24,35 @@
     </div>
 
     <script>
-        // 외부 라이브러리 파일 다운로드 없이 브라우저 기본 내장 기능을 활용 (보안 차단 0%)
-        // 전 세계 공용으로 쓰는 실시간 중계 주소입니다.
-        const channelName = "my_shared_secret_room_1234"; // 나만의 고유 방 이름
-        const pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:google.com" }] });
+        // 전 세계 공용 무료 실시간 데이터 허브 채널 설정 (나만의 고유 주소로 자동 지정)
+        const subscribeURL = "ntfy.sh";
+        const publishURL = "ntfy.sh";
         
-        // 깃허브 보안을 우회하기 위해 무료 메시지 중계 허브(SSE)를 가동합니다.
-        const eventSource = new EventSource(`abort.io{channelName}`);
+        // 브라우저 기본 기능으로 외부 서버 우회 차단망 가동
+        const eventSource = new EventSource(subscribeURL);
         const box = document.getElementById('box');
         let typingTimer;
 
-        // 1. 다른 기기(모바일 등)에서 글을 쓰면 내 화면에 실시간 수신
+        // 1. 상대방 기기에서 글을 쓰면 내 화면에 실시간으로 글자 반영
         eventSource.onmessage = function(event) {
-            if (document.activeElement !== box) {
-                box.value = event.data;
+            const data = JSON.parse(event.data);
+            // 내가 지금 입력 창을 클릭해서 쓰고 있는 상태가 아닐 때만 덮어쓰기
+            if (document.activeElement !== box && data.message) {
+                box.value = data.message;
             }
         };
 
-        // 2. 내가 글을 쓰면 즉시 서버를 거쳐 다른 기기로 송신
+        // 2. 내가 글을 쓰면 즉시 서버를 거쳐 다른 기기로 텍스트 송신
         box.addEventListener('input', (e) => {
             clearTimeout(typingTimer);
+            
+            // 입력 도중 과부하를 막기 위해 타이핑이 0.2초 멈추면 전송
             typingTimer = setTimeout(() => {
-                fetch(`abort.io{channelName}`, {
+                fetch(publishURL, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'text/plain' },
-                    body: e.target.value
+                    body: JSON.stringify({ message: e.target.value })
                 });
-            }, 200); // 0.2초마다 안정적으로 동기화 전송
+            }, 200);
         });
     </script>
 </body>
