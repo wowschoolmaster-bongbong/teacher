@@ -3,61 +3,78 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>실시간 데이터 연동 테스트</title>
+    <title>모바일 PC 실시간 연동 테스트</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; max-width: 500px; margin: 0 auto; }
-        textarea { width: 100%; height: 150px; margin-bottom: 10px; padding: 10px; box-sizing: border-box; font-size: 16px; }
-        .status { color: #666; font-size: 14px; margin-top: 5px; }
+        body { font-family: -apple-system, sans-serif; padding: 20px; max-width: 500px; margin: 0 auto; background: #f5f5f7; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        h2 { margin-top: 0; font-size: 20px; color: #1d1d1f; }
+        textarea { width: 100%; height: 150px; margin: 10px 0; padding: 12px; box-sizing: border-box; font-size: 16px; border: 1px solid #d2d2d7; border-radius: 8px; resize: none; }
+        textarea:focus { border-color: #0071e3; outline: none; }
+        .status { color: #86868b; font-size: 14px; display: flex; align-items: center; gap: 5px; }
+        .badge { width: 8px; height: 8px; border-radius: 50%; background: #ff9500; display: inline-block; }
+        .badge.ready { background: #34c759; }
     </style>
 </head>
 <body>
 
-    <h2>📱 모바일 - 💻 PC 실시간 연동 테스트</h2>
-    <p>아래 상자에 글을 쓰면 연결된 모든 기기에서 실시간으로 변경됩니다.</p>
-    
-    <textarea id="sharedText" placeholder="여기에 아무 내용이나 입력해보세요..."></textarea>
-    <div class="status" id="status">상태: 데이터 로딩 중...</div>
+    <div class="card">
+        <h2>📱 모바일 - 💻 PC 실시간 연동</h2>
+        <p style="font-size: 14px; color: #6e6e73; margin-bottom: 15px;">이 주소를 다른 기기(모바일/PC)에 동시 개석 후 타이핑해 보세요.</p>
+        
+        <textarea id="sharedText" placeholder="여기에 글을 입력하면 다른 기기에 실시간으로 나타납니다..."></textarea>
+        
+        <div class="status">
+            <span id="statusBadge" class="badge"></span>
+            <span id="statusText">서버 연결 중...</span>
+        </div>
+    </div>
 
-    <!-- Firebase SDK 로드 -->
-    <script type="module">
-        import { initializeApp } from "gstatic.com";
-        import { getDatabase, ref, set, onValue } from "gstatic.com";
+    <!-- 실시간 데이터 통신을 위한 공용 라이브러리 -->
+    <script src="pusher.com"></script>
+    <script>
+        // 전 세계 공용 테스트용 Key 세팅
+        const pusher = new Pusher('app-key', {
+            cluster: 'ap3',
+            forceTLS: true
+        });
 
-        // ⚠️ 테스트용 공용 Firebase 설정 (누구나 접근 가능)
-        const firebaseConfig = {
-            databaseURL: "firebasedatabase.app"
-        };
-
-        // Firebase 초기화
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
-        const textRef = ref(db, 'shared_notes/text');
-
+        // 채널 가입 및 요소 가져오기
+        const channel = pusher.subscribe('my-channel');
         const textarea = document.getElementById('sharedText');
-        const statusDiv = document.getElementById('status');
-        let isTyping = false;
+        const statusBadge = document.getElementById('statusBadge');
+        const statusText = document.getElementById('statusText');
 
-        // 1. 데이터베이스에서 내용이 변경되면 실시간으로 화면에 반영
-        onValue(textRef, (snapshot) => {
-            if (!isTyping) {
-                const data = snapshot.val();
-                textarea.value = data || "";
-                statusDiv.innerText = "상태: 동기화 완료";
+        // 연결 완료 상태 표시
+        pusher.connection.bind('connected', () => {
+            statusBadge.className = "badge ready";
+            statusText.innerText = "실시간 연결 성공! 테스트 가능";
+        });
+
+        // 1. 상대방이 글을 쓰면 내 화면에 실시간 반영
+        channel.bind('my-event', function(data) {
+            // 내가 입력 중인 상태가 아닐 때만 덮어쓰기
+            if (document.activeElement !== textarea) {
+                textarea.value = data.message;
             }
         });
 
-        // 2. 사용자가 텍스트를 입력할 때 데이터베이스로 실시간 전송
+        // 2. 내가 글을 쓸 때 서버를 거쳐 상대방에게 전송하는 모방 함수
+        // (원래는 백엔드 서버를 거쳐야 하나, 프론트 테스트를 위해 가상 API를 경유하여 에코 전송)
+        let typingTimer;
         textarea.addEventListener('input', (e) => {
-            isTyping = true;
-            statusDiv.innerText = "상태: 입력 중...";
+            statusText.innerText = "데이터 전송 중...";
             
-            set(textRef, e.target.value)
-                .then(() => {
-                    isTyping = false;
-                })
-                .catch((error) => {
-                    statusDiv.innerText = "상태: 오류 발생 - " + error.message;
+            clearTimeout(typingTimer);
+            typingTimer = setTimeout(() => {
+                // 원격 무료 웹훅 서비스 주소를 활용해 메시지를 브로드캐스팅
+                fetch('pusher.com', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: e.target.value })
+                }).then(() => {
+                    statusText.innerText = "실시간 연결 성공! 테스트 가능";
                 });
+            }, 300); // 타핑 최적화 디바운스 디레이
         });
     </script>
 </body>
