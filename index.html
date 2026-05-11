@@ -10,7 +10,7 @@
         h2 { margin-top: 0; font-size: 20px; color: #1d1d1f; }
         textarea { width: 100%; height: 150px; margin: 10px 0; padding: 12px; box-sizing: border-box; font-size: 16px; border: 1px solid #d2d2d7; border-radius: 8px; resize: none; }
         textarea:focus { border-color: #0071e3; outline: none; }
-        .status { color: #86868b; font-size: 14px; font-weight: bold; }
+        .status { font-size: 14px; font-weight: bold; margin-top: 10px; color: #86868b; }
     </style>
 </head>
 <body>
@@ -20,62 +20,70 @@
         <p style="font-size: 14px; color: #6e6e73;">본인의 파이어베이스 서버를 거쳐 안전하게 동기화됩니다.</p>
         
         <textarea id="sharedText" placeholder="여기에 글을 입력하면 다른 기기에 실시간으로 나타납니다..."></textarea>
-        <div class="status" id="status">상태: 연결 초기화 중...</div>
+        <div class="status" id="status">상태: 라이브러리 로드 중...</div>
     </div>
 
-    <!-- 완전히 호환되는 최신 버전 공식 파이어베이스 모듈 주소 적용 -->
-    <script type="module">
-        import { initializeApp } from "gstatic.com";
-        import { getDatabase, ref, set, onValue } from "gstatic.com";
+    <!-- 호환성 충돌이 전혀 없는 범용 Firebase CDN 로드 방식 -->
+    <script src="gstatic.com"></script>
+    <script src="gstatic.com"></script>
 
-        // 보내주신 설정값을 안전하게 연동 코드에 완벽 반영 완료
-        const firebaseConfig = {
-            apiKey: "AIzaSyD4-ZmPnxvPDmpJ0kukQUa3VglmysBA5MA",
-            authDomain: "test-61c65.firebaseapp.com",
-            databaseURL: "https://test-61c65-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "test-61c65",
-            storageBucket: "test-61c65.firebasestorage.app",
-            messagingSenderId: "389013854387",
-            appId: "1:389013854387:web:fe6d27f87878b7aeb578c6"
-        };
-
-        // 서비스 시작 및 초기 설정
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
-        const textRef = ref(db, 'shared_note/text');
-
-        const textarea = document.getElementById('sharedText');
+    <script>
         const statusDiv = document.getElementById('status');
+        const textarea = document.getElementById('sharedText');
         let isTyping = false;
 
-        // 1. 서버에 데이터 변경 감지 시 실시간 화면 업데이트
-        onValue(textRef, (snapshot) => {
-            if (!isTyping) {
-                const data = snapshot.val();
-                textarea.value = data || "";
-                statusDiv.innerText = "상태: 실시간 동기화 완료 ✅";
-                statusDiv.style.color = "#34c759"; // 초록색 변경
-            }
-        }, (error) => {
-            statusDiv.innerText = "접근 차단 오류: 파이어베이스 '규칙'을 테스트 모드로 안 바꿨을 확률이 높습니다. -> " + error.message;
-            statusDiv.style.color = "#ff3b30"; // 빨간색 변경
-        });
-
-        // 2. 입력 시 서버로 실시간 텍스트 업로드
-        textarea.addEventListener('input', (e) => {
-            isTyping = true;
-            statusDiv.innerText = "상태: 입력 내용 전송 중...";
-            statusDiv.style.color = "#ff9500"; // 주황색 변경
+        // 라이브러리가 정상 로드되었는지 즉각 점검하는 예외처리
+        if (typeof firebase === 'undefined') {
+            statusDiv.innerText = "❌ 라이브러리 로드 차단됨 (네트워크/보안 문제)";
+            statusDiv.style.color = "#ff3b30";
+        } else {
+            statusDiv.innerText = "상태: 서버 연결 시도 중...";
             
-            set(textRef, e.target.value)
-                .then(() => { 
-                    isTyping = false; 
-                })
-                .catch((error) => { 
-                    statusDiv.innerText = "전송 오류: " + error.message; 
-                    statusDiv.style.color = "#ff3b30";
-                });
-        });
+            // 제공해주신 싱가포르 서버 정보 연동
+            const firebaseConfig = {
+                apiKey: "AIzaSyD4-ZmPnxvPDmpJ0kukQUa3VglmysBA5MA",
+                authDomain: "test-61c65.firebaseapp.com",
+                databaseURL: "firebasedatabase.app",
+                projectId: "test-61c65",
+                storageBucket: "test-61c65.firebasestorage.app",
+                messagingSenderId: "389013854387",
+                appId: "1:389013854387:web:fe6d27f87878b7aeb578c6"
+            };
+
+            // 전역 인스턴스로 안전하게 앱 초기화
+            firebase.initializeApp(firebaseConfig);
+            const db = firebase.database();
+            const textRef = db.ref('shared_note/text');
+
+            // 1. 서버 데이터 변경 실시간 감시 수신기
+            textRef.on('value', (snapshot) => {
+                if (!isTyping) {
+                    const data = snapshot.val();
+                    textarea.value = data || "";
+                    statusDiv.innerText = "상태: 실시간 동기화 완료 ✅";
+                    statusDiv.style.color = "#34c759";
+                }
+            }, (error) => {
+                statusDiv.innerText = "🚨 접근 거부 오류! 파이어베이스 '규칙'이 테스트 모드가 아닙니다: " + error.message;
+                statusDiv.style.color = "#ff3b30";
+            });
+
+            // 2. 타이핑 발생 시 데이터베이스 전송기
+            textarea.addEventListener('input', (e) => {
+                isTyping = true;
+                statusDiv.innerText = "상태: 입력 내용 전송 중...";
+                statusDiv.style.color = "#ff9500";
+                
+                textRef.set(e.target.value)
+                    .then(() => { 
+                        isTyping = false; 
+                    })
+                    .catch((error) => { 
+                        statusDiv.innerText = "전송 실패: " + error.message; 
+                        statusDiv.style.color = "#ff3b30";
+                    });
+            });
+        }
     </script>
 </body>
 </html>
