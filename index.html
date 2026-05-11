@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>실시간 데이터 연동 테스트</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; max-width: 500px; margin: 0 auto; }
+        textarea { width: 100%; height: 150px; margin-bottom: 10px; padding: 10px; box-sizing: border-box; font-size: 16px; }
+        .status { color: #666; font-size: 14px; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+    <h2>📱 모바일 - 💻 PC 실시간 연동 테스트</h2>
+    <p>아래 상자에 글을 쓰면 연결된 모든 기기에서 실시간으로 변경됩니다.</p>
+    
+    <textarea id="sharedText" placeholder="여기에 아무 내용이나 입력해보세요..."></textarea>
+    <div class="status" id="status">상태: 데이터 로딩 중...</div>
+
+    <!-- Firebase SDK 로드 -->
+    <script type="module">
+        import { initializeApp } from "gstatic.com";
+        import { getDatabase, ref, set, onValue } from "gstatic.com";
+
+        // ⚠️ 테스트용 공용 Firebase 설정 (누구나 접근 가능)
+        const firebaseConfig = {
+            databaseURL: "firebasedatabase.app"
+        };
+
+        // Firebase 초기화
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const textRef = ref(db, 'shared_notes/text');
+
+        const textarea = document.getElementById('sharedText');
+        const statusDiv = document.getElementById('status');
+        let isTyping = false;
+
+        // 1. 데이터베이스에서 내용이 변경되면 실시간으로 화면에 반영
+        onValue(textRef, (snapshot) => {
+            if (!isTyping) {
+                const data = snapshot.val();
+                textarea.value = data || "";
+                statusDiv.innerText = "상태: 동기화 완료";
+            }
+        });
+
+        // 2. 사용자가 텍스트를 입력할 때 데이터베이스로 실시간 전송
+        textarea.addEventListener('input', (e) => {
+            isTyping = true;
+            statusDiv.innerText = "상태: 입력 중...";
+            
+            set(textRef, e.target.value)
+                .then(() => {
+                    isTyping = false;
+                })
+                .catch((error) => {
+                    statusDiv.innerText = "상태: 오류 발생 - " + error.message;
+                });
+        });
+    </script>
+</body>
+</html>
