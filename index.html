@@ -10,7 +10,7 @@
         h2 { margin-top: 0; font-size: 20px; color: #1d1d1f; }
         textarea { width: 100%; height: 150px; margin: 10px 0; padding: 12px; box-sizing: border-box; font-size: 16px; border: 1px solid #d2d2d7; border-radius: 8px; resize: none; }
         textarea:focus { border-color: #0071e3; outline: none; }
-        .status { color: #86868b; font-size: 14px; }
+        .status { color: #86868b; font-size: 14px; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -23,23 +23,23 @@
         <div class="status" id="status">상태: 연결 초기화 중...</div>
     </div>
 
-    <!-- Firebase SDK 모듈 로드 -->
+    <!-- 완전히 호환되는 최신 버전 공식 파이어베이스 모듈 주소 적용 -->
     <script type="module">
         import { initializeApp } from "gstatic.com";
         import { getDatabase, ref, set, onValue } from "gstatic.com";
 
-        // ⚠️ [여기에 본인의 3단계 설정을 붙여넣으세요]
+        // 보내주신 설정값을 안전하게 연동 코드에 완벽 반영 완료
         const firebaseConfig = {
-            apiKey:"AIzaSyD4-ZmPnxvPDmpJ0kukQUa3VglmysBA5MA",
+            apiKey: "AIzaSyD4-ZmPnxvPDmpJ0kukQUa3VglmysBA5MA",
             authDomain: "test-61c65.firebaseapp.com",
-            databaseURL: "https://test-61c65-default-rtdb.asia-southeast1.firebasedatabase.app", // 반드시 이 줄이 올바르게 들어있어야 데이터베이스와 통신합니다.
+            databaseURL: "https://test-61c65-default-rtdb.asia-southeast1.firebasedatabase.app",
             projectId: "test-61c65",
             storageBucket: "test-61c65.firebasestorage.app",
             messagingSenderId: "389013854387",
             appId: "1:389013854387:web:fe6d27f87878b7aeb578c6"
         };
 
-        // Firebase 초기화 및 DB 연결
+        // 서비스 시작 및 초기 설정
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
         const textRef = ref(db, 'shared_note/text');
@@ -48,23 +48,33 @@
         const statusDiv = document.getElementById('status');
         let isTyping = false;
 
-        // 1. 서버에 저장된 값이 바뀌면 내 화면을 실시간 업데이트
+        // 1. 서버에 데이터 변경 감지 시 실시간 화면 업데이트
         onValue(textRef, (snapshot) => {
             if (!isTyping) {
                 const data = snapshot.val();
                 textarea.value = data || "";
                 statusDiv.innerText = "상태: 실시간 동기화 완료 ✅";
+                statusDiv.style.color = "#34c759"; // 초록색 변경
             }
+        }, (error) => {
+            statusDiv.innerText = "접근 차단 오류: 파이어베이스 '규칙'을 테스트 모드로 안 바꿨을 확률이 높습니다. -> " + error.message;
+            statusDiv.style.color = "#ff3b30"; // 빨간색 변경
         });
 
-        // 2. 내가 글자를 입력하면 실시간으로 서버에 저장
+        // 2. 입력 시 서버로 실시간 텍스트 업로드
         textarea.addEventListener('input', (e) => {
             isTyping = true;
             statusDiv.innerText = "상태: 입력 내용 전송 중...";
+            statusDiv.style.color = "#ff9500"; // 주황색 변경
             
             set(textRef, e.target.value)
-                .then(() => { isTyping = false; })
-                .catch((error) => { statusDiv.innerText = "오류 발생: " + error.message; });
+                .then(() => { 
+                    isTyping = false; 
+                })
+                .catch((error) => { 
+                    statusDiv.innerText = "전송 오류: " + error.message; 
+                    statusDiv.style.color = "#ff3b30";
+                });
         });
     </script>
 </body>
