@@ -16,7 +16,7 @@
 
     <div class="card">
         <h2>📱 모바일 ⇄ 💻 PC 실시간 메모장</h2>
-        <p class="info">동일한 고유 주소망을 통해 기기 간 글자가 무조건 동기화됩니다.</p>
+        <p class="info">수동 새로고침 없이 양쪽 기기를 동시에 켜놓고 입력해 보세요.</p>
         
         <textarea id="box" placeholder="여기에 아무 내용이나 타이핑해 보세요..."></textarea>
         
@@ -24,9 +24,9 @@
     </div>
 
     <script>
-        // 전 세계 공용 무료 실시간 허브 채널 (오류 유발 요소를 제거한 로우 포맷 주소)
-        const roomID = "sync_room_unique_998877"; // 중복 방지를 위한 나만의 방 이름
-        const subscribeURL = `ntfy.sh{roomID}/raw`; // 가공 없는 원본 문자열 수신 경로
+        // 전 세계 공용 무료 실시간 허브 채널 (중복 방지를 위한 고유 방 이름)
+        const roomID = "sync_room_unique_998877"; 
+        const subscribeURL = `ntfy.sh{roomID}/sse`; // 공식 가이드에 맞춘 SSE 수신 경로 수정
         const publishURL = `ntfy.sh{roomID}`;
 
         const eventSource = new EventSource(subscribeURL);
@@ -40,30 +40,30 @@
             statusText.style.color = "#28a745";
         };
 
-        // 1. 상대방 기기에서 입력된 순수 글자 데이터 수신 및 반영
+        // 1. 상대방 기기에서 입력된 문자열 수신 후 화면에 반영
         eventSource.onmessage = function(event) {
-            // 다른 기기에서 보낸 데이터가 비어있지 않고, 내가 입력 중이 아닐 때만 화면 갱신
-            if (document.activeElement !== box && event.data.trim() !== "") {
-                box.value = event.data;
+            const data = JSON.parse(event.data); // 공식 규격 데이터 파싱
+            // 내가 입력 중이 아닐 때만 텍스트 박스를 상대방 글자로 갱신
+            if (document.activeElement !== box && data.message) {
+                box.value = data.message;
             }
         };
 
-        // 2. 사용자가 글을 타이핑할 때 원시 문자열 서식으로 직접 전송
+        // 2. 사용자가 글을 타이핑할 때 실시간 전송
         box.addEventListener('input', (e) => {
             clearTimeout(typingTimer);
             statusText.innerText = "● 데이터 전송 중...";
-            statusDiv.style.color = "#ff9500";
+            statusText.style.color = "#ff9500";
             
             typingTimer = setTimeout(() => {
                 fetch(publishURL, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'text/plain; charset=utf-8' }, // 인코딩 규격 명시
                     body: e.target.value
                 }).then(() => {
                     statusText.innerText = "● 실시간 연결망 가동 중 (정상)";
                     statusText.style.color = "#28a745";
                 });
-            }, 250); // 0.25초 디바운스로 통신 안정성 확보
+            }, 250); // 0.25초 타이핑 지연 최적화
         });
     </script>
 </body>
