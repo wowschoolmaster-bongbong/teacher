@@ -28,15 +28,16 @@
         import { initializeApp } from "gstatic.com";
         import { getDatabase, ref, set, onValue } from "gstatic.com";
 
-        // const firebaseConfig = {
-  apiKey: "AIzaSyD4-ZmPnxvPDmpJ0kukQUa3VglmysBA5MA",
-  authDomain: "test-61c65.firebaseapp.com",
-  databaseURL: "https://test-61c65-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "test-61c65",
-  storageBucket: "test-61c65.firebasestorage.app",
-  messagingSenderId: "389013854387",
-  appId: "1:389013854387:web:fe6d27f87878b7aeb578c6"
-};
+        // ⚠️ [여기에 본인의 3단계 설정을 붙여넣으세요]
+        const firebaseConfig = {
+            apiKey:"AIzaSyD4-ZmPnxvPDmpJ0kukQUa3VglmysBA5MA",
+            authDomain: "test-61c65.firebaseapp.com",
+            databaseURL: "https://test-61c65-default-rtdb.asia-southeast1.firebasedatabase.app", // 반드시 이 줄이 올바르게 들어있어야 데이터베이스와 통신합니다.
+            projectId: "test-61c65",
+            storageBucket: "test-61c65.firebasestorage.app",
+            messagingSenderId: "389013854387",
+            appId: "1:389013854387:web:fe6d27f87878b7aeb578c6"
+        };
 
         // Firebase 초기화 및 DB 연결
         const app = initializeApp(firebaseConfig);
